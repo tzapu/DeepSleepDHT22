@@ -1,18 +1,32 @@
 #include <ESP8266WiFi.h>
 
 #include <WiFiClient.h>
-#include <EEPROM.h>
-#include <ESP8266mDNS.h>
-#include <WiFiManager.h>
 
-#include <DHT.h>
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
+#include <WiFiManager.h>        //https://github.com/tzapu/WiFiManager
+
+#include <PietteTech_DHT.h>     //https://github.com/chaeplin/PietteTech_DHT-8266
 
 //DHT22 config
 #define DHTPIN 2 // what pin DHT is connected to
 #define DHTTYPE DHT22 // DHT 11
-DHT dht(DHTPIN, DHTTYPE, 20);
+//declaration
+void dht_wrapper(); // must be declared before the lib initialization
 
-//#define DEBUGPRINT
+// Lib instantiate
+PietteTech_DHT DHT(DHTPIN, DHTTYPE, dht_wrapper);
+
+// globals
+bool bDHTstarted;       // flag to indicate we started acquisition
+
+// This wrapper is in charge of calling
+// must be defined like this for the lib work
+void dht_wrapper() {
+  DHT.isrCallback();
+}
+
+#define DEBUGPRINT
 
 #ifdef DEBUGPRINT
 #define DEBUG_PRINT(x)  Serial.println (x)
@@ -60,23 +74,26 @@ void sendData();
 
 void setup(void)
 {
+  //ESP.eraseConfig();
 
   startMills = millis();
   // start serial port
   Serial.begin(115200);
-
 
   //-------------------
 
   DEBUG_PRINT();
 
   WiFiManager wifi;
+  //wifi.resetSettings();
+  
   wifi.setTimeout(120); //so if it restarts and router is not yet online, it keeps rebooting and retrying to connect
-  if (!wifi.autoConnect()) {
+  
+  if (!wifi.autoConnect("Cashula")) {
     DEBUG_PRINT("timeout - going to sleep");
     DEBUG_PRINT(millis() - startMills);
 
-    delay(1000);
+    delay(200);
     //sleep and try again
     ESP.deepSleep(10 * 60 * 1000 * 1000);
     delay(1000);
@@ -88,7 +105,7 @@ void setup(void)
   DEBUG_PRINT(millis() - startMills);
   //-------
  //setup hardware
-  dht.begin();
+  //dht.begin();
 
   delay(20);
 
@@ -107,15 +124,28 @@ void loop(void)
   DEBUG_PRINT(millis() - startMills);
 
   DEBUG_PRINT("Requesting temperatures...");
-  h = dht.readHumidity();
+  int acquireresult;
+  acquireresult = DHT.acquireAndWait(2000);
+  if ( acquireresult == 0 ) {
+    t = DHT.getCelsius();
+    h = DHT.getHumidity();
+    delay(10);
+    sendData();
+    DEBUG_PRINT("DONE");
+  } else {
+    t = h = 0;
+    DEBUG_PRINT("Failed");
+
+  }
+  
+  /*h = dht.readHumidity();
   t = dht.readTemperature();
 
   if (!isnan(h) && !isnan(t)) {
     delay(10);
     sendData();
-  }
+  }*/
 
-  DEBUG_PRINT("DONE");
   DEBUG_PRINT(millis() - startMills);
   DEBUG_PRINT("Going to sleep");
   delay(250);
