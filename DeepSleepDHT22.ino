@@ -15,7 +15,7 @@
 void dht_wrapper(); // must be declared before the lib initialization
 
 // Lib instantiate
-PietteTsech_DHT DHT(DHTPIN, DHTTYPE, dht_wrapper);
+PietteTech_DHT DHT(DHTPIN, DHTTYPE, dht_wrapper);
 
 // globals
 bool bDHTstarted;       // flag to indicate we started acquisition
@@ -100,17 +100,8 @@ void setup(void)
   }
 
   DEBUG_PRINT(millis() - startMills);
-
-
-  DEBUG_PRINT(millis() - startMills);
   //-------
  //setup hardware
-  //dht.begin();
-
-  delay(20);
-
-
-  DEBUG_PRINT(millis() - startMills);
 
 }
 
@@ -125,7 +116,13 @@ void loop(void)
 
   DEBUG_PRINT("Requesting temperatures...");
   int acquireresult;
-  acquireresult = DHT.acquireAndWait(4000);
+  
+  //read twice as the first result is cached from last time. suggested by @chaeplin
+  delay(2000);
+  DHT.acquireAndWait(100);
+  delay(2000);
+  acquireresult = DHT.acquireAndWait(100);
+
   if ( acquireresult == 0 ) {
     t = DHT.getCelsius();
     h = DHT.getHumidity();
